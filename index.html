@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Orb</title>
+    
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: #000;
+            overflow: hidden;
+            font-family: 'Poppins', sans-serif;
+            cursor: pointer;
+        }
+
+        canvas {
+            display: block;
+        }
+        
+        .instructions {
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center;
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            user-select: none;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div class="instructions">Move your mouse and click to change color</div>
+    <canvas id="interactiveCanvas"></canvas>
+
+    <script>
+        // --- Setup ---
+        const canvas = document.getElementById('interactiveCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // --- Mouse Tracker ---
+        const mouse = {
+            x: canvas.width / 2,
+            y: canvas.height / 2
+        };
+
+        // --- NEW: Global Hue Variable ---
+        // This will track our base color. We start at blue (180).
+        let baseHue = 180;
+
+        // --- Particle Class ---
+        class Particle {
+            constructor(x, y, radius, color, velocity) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.color = color;
+                this.velocity = velocity;
+                this.alpha = 1; // Opacity
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.restore();
+            }
+
+            update() {
+                this.x += this.velocity.x;
+                this.y += this.velocity.y;
+                this.alpha -= 0.02; // Fade out
+                this.draw();
+            }
+        }
+
+        let particles = [];
+
+        // --- Animation Loop ---
+        function animate() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const particle = particles[i];
+                if (particle.alpha <= 0) {
+                    particles.splice(i, 1);
+                } else {
+                    particle.update();
+                }
+            }
+            
+            // Create the trailing orb effect
+            const radius = Math.random() * 5 + 2;
+            // NEW: Use the baseHue with a small random variation
+            const hueVariation = (Math.random() * 30) - 15; // +/- 15 from base
+            const color = `hsl(${baseHue + hueVariation}, 100%, 70%)`;
+            
+            particles.push(new Particle(
+                mouse.x,
+                mouse.y,
+                radius,
+                color,
+                {
+                    x: (Math.random() - 0.5) * 2,
+                    y: (Math.random() - 0.5) * 2
+                }
+            ));
+
+            requestAnimationFrame(animate);
+        }
+
+        // --- Event Listeners ---
+        window.addEventListener('mousemove', (event) => {
+            mouse.x = event.clientX;
+            mouse.y = event.clientY;
+        });
+        
+        // On click, create an explosion AND change the color
+        window.addEventListener('click', (event) => {
+            mouse.x = event.clientX;
+            mouse.y = event.clientY;
+
+            // --- NEW: Increment the base hue on every click ---
+            // We add 30 and use the modulo operator (%) to make it wrap around
+            // the 360 degrees of the color wheel, so it cycles forever.
+            baseHue = (baseHue + 30) % 360;
+
+            const particleCount = 200;
+            const angleIncrement = (Math.PI * 2) / particleCount;
+
+            for (let i = 0; i < particleCount; i++) {
+                // NEW: Explosion particles also use the new baseHue
+                const hueVariation = (Math.random() * 30) - 15;
+                const color = `hsl(${baseHue + hueVariation}, 100%, 70%)`;
+                const power = Math.random() * 6 + 4;
+
+                particles.push(new Particle(
+                    mouse.x,
+                    mouse.y,
+                    Math.random() * 4 + 1, // radius
+                    color,
+                    {
+                        x: Math.cos(angleIncrement * i) * power,
+                        y: Math.sin(angleIncrement * i) * power
+                    }
+                ));
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // --- Start the animation ---
+        animate();
+    </script>
+</body>
+</html>
